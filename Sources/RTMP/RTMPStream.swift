@@ -442,8 +442,8 @@ open class RTMPStream: NetStream {
     }
 
     open func close() {
-        DispatchQueue.main.async {
-            self.mixer.stopRunning()
+        DispatchQueue.main.async { [weak self] in
+            self?.mixer.stopRunning()
         }
         
         if (self.readyState == .closed) {
@@ -453,19 +453,20 @@ open class RTMPStream: NetStream {
         publish(nil)
         
         guard rtmpConnection.connected else { return }
-        lockQueue.sync {
-            self.rtmpConnection.socket.doOutput(chunk: RTMPChunk(
+        lockQueue.sync { [weak self] in
+            guard let maybeSelf = self else { return }
+            maybeSelf.rtmpConnection.socket.doOutput(chunk: RTMPChunk(
                 type: .zero,
                 streamId: RTMPChunk.StreamID.command.rawValue,
                 message: RTMPCommandMessage(
                     streamId: 0,
                     transactionId: 0,
-                    objectEncoding: self.objectEncoding,
+                    objectEncoding: maybeSelf.objectEncoding,
                     commandName: "deleteStream",
                     commandObject: nil,
-                    arguments: [self.id]
+                    arguments: [maybeSelf.id]
             )))
-            self.readyState = .closed
+            maybeSelf.readyState = .closed
         }
     }
 
